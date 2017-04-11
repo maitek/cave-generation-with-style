@@ -70,17 +70,30 @@ def stylize_image(input_image, which_styles, checkpoint):
         return output_image[0,:,:,:]
 
 
+def generate_noise_map(map_size):
+    for i in range(1,100):
+    	noise_map = np.zeros(map_size)
+    	for octave in [1,2,8,32]:
+    		noise_map_octave = np.random.rand(int(map_size[0]/octave),int(map_size[1]/octave))
+    		#print(noise_map_octave)
+    		noise_map_octave = imresize(noise_map_octave ,map_size, interp="bicubic", mode='F')
+    		noise_map += noise_map_octave*octave
 
-# generate map and resize it to output size
-random_map = generate_map(map_size,num_iterations,ksize)
-random_map = imresize(random_map,output_size, interp="nearest")
+    return noise_map
 
-# style transfer
-map_with_style = stylize_image(random_map,[4],model_checkpoint)
 
-#save map
-imsave('map.png', random_map)
-imsave('map_with_style.png', map_with_style)
+# Generate with all styles
+for i in range(32):
+    print("Generating map in style {}".format(i))
+    # generate map and resize it to output size
+    random_map = generate_map(map_size,num_iterations,ksize)
+    random_map = imresize(random_map,output_size, interp="nearest")
+    input_map = random_map.astype(np.float32) + generate_noise_map(random_map.shape)*10
+
+    map_with_style = stylize_image(input_map,[i],model_checkpoint)
+    imsave('style_{}.png'.format(i), map_with_style)
+    imsave('map_{}.png'.format(i), random_map)
+
 # show map
 plt.imshow(random_map)
 plt.imshow(map_with_style)
