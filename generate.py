@@ -1,9 +1,10 @@
 import numpy as np
 from scipy.signal import convolve2d
 import matplotlib.pyplot as plt
-from scipy.misc import imsave, imresize
+from scipy.misc import imread, imsave, imresize
 
 import tensorflow as tf
+import os
 
 from magenta.models.image_stylization import image_utils
 from magenta.models.image_stylization import model
@@ -11,14 +12,14 @@ from magenta.models.image_stylization import ops
 
 # Map options
 map_size = (256,256)
-output_size = (1024,1024)
+output_size = (512,512)
 num_iterations = 10
 ksize = 7
 random_seed = 3
 
 # Style options
 model_checkpoint = "multistyle-pastiche-generator-varied.ckpt"
-
+model_checkpoint = os.path.join(os.getcwd(),model_checkpoint)
 
 def generate_map(map_size=(64,64),num_iterations=10, ksize = 3, random_seed=None):
     """
@@ -47,41 +48,40 @@ def load_checkpoint(sess, checkpoint):
     tf.logging.info('loading latest checkpoint file: {}'.format(checkpoint))
   model_saver.restore(sess, checkpoint)
 
-def stylize_image(image,checkpoint):
-    #def _multiple_styles(input_image, which_styles, output_dir):
-    #  """Stylizes image into a linear combination of styles and writes to disk."""
-    X = image[np.newaxis,...,np.newaxis].astype(np.float32)
-    num_styles = 32
-    weights = np.zeros([num_styles], dtype=np.float32)
-    weights[0] = 1
+def stylize_image(input_image, which_styles, checkpoint):
 
-    print(X.shape, X.dtype)
+    # convert image to tensor
+    tensor = input_image[...,np.newaxis].astype(np.float32)
+    tensor = np.dstack((tensor,tensor,tensor))
+    tensor = tensor[np.newaxis,...]
 
+    """Stylizes an image into a set of styles and writes them to disk."""
     with tf.Graph().as_default(), tf.Session() as sess:
         style_network = model.transform(
-            X,
-            normalizer_fn=ops.weighted_instance_norm,
+            tf.concat([tensor for _ in range(len(which_styles))], 0),
             normalizer_params={
-                'weights': tf.constant(weights),
-                'num_categories': num_styles,
+                'labels': tf.constant(which_styles),
+                'num_categories': 32,
                 'center': True,
                 'scale': True})
         load_checkpoint(sess, checkpoint)
 
-        stylized_image = style_network.eval()
-    return stylize_image
+        output_image = style_network.eval()
+        return output_image[0,:,:,:]
+
 
 
 # generate map and resize it to output size
 random_map = generate_map(map_size,num_iterations,ksize)
 random_map = imresize(random_map,output_size, interp="nearest")
 
-#map_with_style = stylize_image(random_map,model_checkpoint)
+# style transfer
+map_with_style = stylize_image(random_map,[4],model_checkpoint)
 
 #save map
 imsave('map.png', random_map)
-#imsave('map_with_style.png', map_with_style)
+imsave('map_with_style.png', map_with_style)
 # show map
 plt.imshow(random_map)
-#plt.imshow(map_with_style)
+plt.imshow(map_with_style)
 plt.show()
