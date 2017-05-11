@@ -8,20 +8,9 @@ import os
 
 from magenta.models.image_stylization import image_utils
 from magenta.models.image_stylization import model
-from magenta.models.image_stylization import ops
 
-# Map options
-map_size = (256,256)
-output_size = (512,512)
-num_iterations = 10
-ksize = 7
-random_seed = 3
 
-# Style options
-model_checkpoint = "multistyle-pastiche-generator-varied.ckpt"
-model_checkpoint = os.path.join(os.getcwd(),model_checkpoint)
-
-def generate_map(map_size=(64,64),num_iterations=10, ksize = 3, random_seed=None):
+def generate_map(map_size=(64,64),num_iterations=10, ksize = 3):
     """
         Generate a random map using cellular automata
     """
@@ -69,32 +58,45 @@ def stylize_image(input_image, which_styles, checkpoint):
         output_image = style_network.eval()
         return output_image[0,:,:,:]
 
+def main():
 
-def generate_noise_map(map_size):
-    for i in range(1,100):
-    	noise_map = np.zeros(map_size)
-    	for octave in [1,2,8,32]:
-    		noise_map_octave = np.random.rand(int(map_size[0]/octave),int(map_size[1]/octave))
-    		#print(noise_map_octave)
-    		noise_map_octave = imresize(noise_map_octave ,map_size, interp="bicubic", mode='F')
-    		noise_map += noise_map_octave*octave
+    # Map options
+    map_size = (256,256)
+    output_size = (1024,1024)
+    num_iterations = 10
+    ksize = 9
 
-    return noise_map
+    # TODO download model automatically
+
+    # Style options
+    model_checkpoint = "multistyle-pastiche-generator-varied.ckpt"
+    model_checkpoint = os.path.join(os.getcwd(),model_checkpoint)
+
+    # Generate caves with all styles
+    for i in range(32):
+
+        print("Generating map in style {}".format(i))
+
+        # generate map and resize it to output size
+        random_map = generate_map(map_size,num_iterations,ksize)
+        random_map = imresize(random_map,output_size, interp="nearest")
+        random_map = random_map.astype(np.float32)/255
+        mask = np.dstack((random_map,random_map,random_map)).astype(np.float32)
+
+        # generate a random texture to give the level some more detail
+        noise_map = np.random.rand(random_map.shape[0],random_map.shape[1])
+        bg_style_map = stylize_image(noise_map,[np.random.randint(32)],model_checkpoint)
+        bg_map =  bg_style_map * mask
+        fg_map = np.swapaxes(bg_style_map,0,1) * (np.ones_like(mask)-mask)
+        combined_map = bg_map+fg_map*0.1
+
+        # apply style transfer to get stylized levels
+        map_style = stylize_image(np.mean(combined_map,axis=2),[i],model_checkpoint)
+        imsave('map_{}.png'.format(i), map_style)
+
+        plt.imshow(map_style)
+        plt.show()
 
 
-# Generate with all styles
-for i in range(32):
-    print("Generating map in style {}".format(i))
-    # generate map and resize it to output size
-    random_map = generate_map(map_size,num_iterations,ksize)
-    random_map = imresize(random_map,output_size, interp="nearest")
-    input_map = random_map.astype(np.float32) + generate_noise_map(random_map.shape)*10
-
-    map_with_style = stylize_image(input_map,[i],model_checkpoint)
-    imsave('style_{}.png'.format(i), map_with_style)
-    imsave('map_{}.png'.format(i), random_map)
-
-# show map
-plt.imshow(random_map)
-plt.imshow(map_with_style)
-plt.show()
+if __name__ == "__main__":
+    main()
