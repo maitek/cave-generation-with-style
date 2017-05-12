@@ -2,8 +2,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from numpy.linalg import norm
 
-map_size = (100,100)
-num_trees = 500
+import time
+
+
+
+
+
+num_trees = 100000
 random_pos = np.random.rand(num_trees,2)
 
 class DistanceHashMap():
@@ -74,7 +79,10 @@ points_map.insert(new_point)
 
 edge_points.append(new_point)
 
-while num_points < 10000 and len(edge_points) > 0:
+performance = list()
+start = time.time()
+while num_points < num_trees and len(edge_points) > 0:
+
     # select random edge
     idx = np.random.randint(0,len(edge_points))
     seed_point = edge_points[idx]
@@ -103,10 +111,9 @@ while num_points < 10000 and len(edge_points) > 0:
         points_map.insert(new_point)
         edge_points.append(new_point.copy())
         num_points+=1
-        #print(num_points)
-        print(len(points))
+        
+        if num_points % 1000 == 0:
 
-        if num_points % 500 == 0:
             #import pdb; pdb.set_trace()
 
             points_array = np.asarray(points_map.get_all_points())
