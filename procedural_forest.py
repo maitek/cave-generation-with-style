@@ -5,9 +5,6 @@ from numpy.linalg import norm
 map_size = (100,100)
 num_trees = 500
 random_pos = np.random.rand(num_trees,2)
-#import pdb; pdb.set_trace()
-#plt.plot(random_pos,".g")
-#plt.show()
 
 class DistanceHashMap():
     def __init__(self, grid_size):
@@ -120,14 +117,3 @@ while num_points < 10000 and len(edge_points) > 0:
             plt.plot(seed_point[0],seed_point[1],".r")
             plt.plot(attempts_array[:,0],attempts_array[:,1],".b")
             plt.show()
-
-
-
-# while(num_points < max_points):
-    # add point at current_pos, and mark it edge
-    # num_points += 1
-    # select a random edge point
-        # if is_still_edge():
-            # current_pos = create_new_pos(current_pos)
-        # else:
-            # mark as not edge
